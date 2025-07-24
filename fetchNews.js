@@ -31,13 +31,18 @@ app.use(express.json());
 async function fetchArticleDetails(url) {
   try {
     const { data: html } = await axios.get(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      },
+      timeout: 8000, // 8 second timeout
+      maxRedirects: 3
     });
     const $ = cheerio.load(html);
     const image = $('meta[property="og:image"]').attr('content') || '';
     const description = $('meta[property="og:description"]').attr('content') || '';
     return { image, description };
-  } catch {
+  } catch (error) {
+    console.warn(`Failed to fetch details for ${url}:`, error.message);
     return { image: '', description: '' };
   }
 }
@@ -45,7 +50,11 @@ async function fetchArticleDetails(url) {
 async function scrapeNews() {
   try {
     const { data: html } = await axios.get('https://www.ndtv.com/india?pfrom=home-ndtv_mainnavigation', {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      },
+      timeout: 10000, // 10 second timeout
+      maxRedirects: 3
     });
     const $ = cheerio.load(html);
     const articles = [];
@@ -68,17 +77,30 @@ async function scrapeNews() {
       throw new Error('No articles found - selectors may need updating.');
     }
 
-    // Limit article count for performance (adjust as needed)
-    const maxCount = 20;
+    // Limit article count for Vercel performance (reduced for faster execution)
+    const maxCount = 10; // Reduced from 20 to 10 for faster execution
     const toFetch = articles.slice(0, maxCount);
 
-    // Fetch full page details concurrently
-    await Promise.all(toFetch.map(async art => {
-      const details = await fetchArticleDetails(art.link);
-      art.image = details.image;
-      // Prefer full description, fallback to list summary
-      art.description = details.description || art.summary;
-    }));
+    // Fetch full page details with limited concurrency to avoid overwhelming the server
+    const concurrencyLimit = 3; // Process only 3 articles at a time
+    const chunks = [];
+    for (let i = 0; i < toFetch.length; i += concurrencyLimit) {
+      chunks.push(toFetch.slice(i, i + concurrencyLimit));
+    }
+
+    for (const chunk of chunks) {
+      await Promise.all(chunk.map(async art => {
+        try {
+          const details = await fetchArticleDetails(art.link);
+          art.image = details.image;
+          art.description = details.description || art.summary;
+        } catch (error) {
+          console.warn(`Failed to process article: ${art.title}`, error.message);
+          art.image = '';
+          art.description = art.summary;
+        }
+      }));
+    }
 
     // Format articles according to the required structure
     const formattedArticles = toFetch.map(art => ({
@@ -100,20 +122,32 @@ async function scrapeNews() {
 
 // GET /api/news - Fetch latest news in JSON format
 app.get('/api/news', async (req, res) => {
+  // Set cache headers for better performance
+  res.set({
+    'Cache-Control': 'public, max-age=300', // 5 minutes cache
+    'X-API-Version': '1.0.0',
+    'X-Powered-By': 'Vercel'
+  });
+
   try {
+    const startTime = Date.now();
     const articles = await scrapeNews();
+    const endTime = Date.now();
+    
     res.json({
       success: true,
       count: articles.length,
       data: articles,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      executionTime: `${endTime - startTime}ms`
     });
   } catch (error) {
     console.error('Error fetching news:', error.message);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch news',
-      message: error.message
+      message: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
