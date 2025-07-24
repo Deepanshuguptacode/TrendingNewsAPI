@@ -26,6 +26,15 @@ npm start
 npm run dev
 ```
 
+## Deployment
+
+### Deploy to Vercel
+1. Push your code to a Git repository
+2. Connect your repository to Vercel
+3. Deploy with one click!
+
+For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md)
+
 ## API Endpoints
 
 ### GET `/api/news`

@@ -5,7 +5,12 @@
   "main": "fetchNews.js",
   "scripts": {
     "start": "node fetchNews.js",
-    "dev": "nodemon fetchNews.js"
+    "dev": "nodemon fetchNews.js",
+    "build": "echo 'Build complete'",
+    "vercel-build": "echo 'Vercel build complete'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "express": "^4.18.2",

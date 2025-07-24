@@ -2,15 +2,19 @@
  "version": 2,
  "builds": [
   {
-   "src": "index.js",
-   "use": "@vercel/node",
-   "config": { "includeFiles": ["dist/**"] }
+   "src": "fetchNews.js",
+   "use": "@vercel/node"
   }
  ],
  "routes": [
   {
    "src": "/(.*)",
-   "dest": "index.js"
+   "dest": "fetchNews.js"
   }
- ]
+ ],
+ "functions": {
+  "fetchNews.js": {
+   "maxDuration": 30
+  }
+ }
 }
