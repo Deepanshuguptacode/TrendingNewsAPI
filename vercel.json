@@ -12,9 +12,4 @@
    "dest": "fetchNews.js"
   }
  ],
- "functions": {
-  "fetchNews.js": {
-   "maxDuration": 30
-  }
- }
 }
